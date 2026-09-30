@@ -2,10 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.model import get_cancellation_prediction
 from backend.schemas import BookingInput
-from backend.database import SessionLocal
-from backend.database_models import PredictionHistory
+from backend.database import SessionLocal, engine
+from backend.database_models import PredictionHistory, Base
 
-
+# Auto-create DB tables on startup
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Hotel Cancellation Prediction API",
@@ -15,7 +16,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
