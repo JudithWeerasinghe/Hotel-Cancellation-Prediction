@@ -6,6 +6,8 @@ const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
 ];
+const YEARS = Array.from({ length: 2035 - 2024 + 1 }, (_, index) => 2024 + index);
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const ROOM_TYPES = ["A","B","C","D","E","F","G","H","I","K","L"];
 const MEALS = ["BB","FB","HB","SC","Undefined"];
 const SEGMENTS = ["Online TA","Offline TA/TO","Direct","Corporate","Complementary","Groups","Aviation"];
@@ -50,6 +52,77 @@ function OptionCards({ options, value, onChange }) {
           {opt}
         </button>
       ))}
+    </div>
+  );
+}
+
+function ArrivalCalendar({ year, month, selectedDate, today, onNavigate, onSelect }) {
+  const firstWeekday = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const days = Array.from(
+    { length: firstWeekday + daysInMonth },
+    (_, index) => (index < firstWeekday ? null : index - firstWeekday + 1)
+  );
+  const isAtStart = year === YEARS[0] && month === 0;
+  const isAtEnd = year === YEARS[YEARS.length - 1] && month === 11;
+
+  return (
+    <div className="arrival-calendar" aria-label="Arrival date calendar">
+      <div className="calendar-header">
+        <button
+          type="button"
+          className="calendar-nav"
+          aria-label="Previous month"
+          disabled={isAtStart}
+          onClick={() => onNavigate(-1)}
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <h3 className="calendar-title">{MONTHS[month]} {year}</h3>
+        <button
+          type="button"
+          className="calendar-nav"
+          aria-label="Next month"
+          disabled={isAtEnd}
+          onClick={() => onNavigate(1)}
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+      <div className="calendar-grid calendar-weekdays" aria-hidden="true">
+        {WEEKDAYS.map((weekday) => (
+          <span key={weekday}>{weekday}</span>
+        ))}
+      </div>
+      <div className="calendar-grid">
+        {days.map((day, index) => {
+          if (day === null) {
+            return <span key={`empty-${index}`} className="calendar-empty" aria-hidden="true" />;
+          }
+
+          const isSelected =
+            selectedDate?.year === year &&
+            selectedDate?.month === month &&
+            selectedDate?.day === day;
+          const isToday =
+            today.getFullYear() === year &&
+            today.getMonth() === month &&
+            today.getDate() === day;
+
+          return (
+            <button
+              type="button"
+              key={day}
+              className={`calendar-day${isSelected ? " selected" : ""}${isToday ? " today" : ""}`}
+              aria-label={`${MONTHS[month]} ${day}, ${year}`}
+              aria-pressed={isSelected}
+              onClick={() => onSelect(year, month, day)}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -135,6 +208,11 @@ const SELECT_PLACEHOLDER = {
 export default function PredictionForm({ onResult, onLoading }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [today] = useState(() => new Date());
+  const [calendarView, setCalendarView] = useState({
+    year: Math.min(Math.max(today.getFullYear(), YEARS[0]), YEARS[YEARS.length - 1]),
+    month: today.getMonth(),
+  });
   const [errors, setErrors] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -144,6 +222,13 @@ export default function PredictionForm({ onResult, onLoading }) {
   };
   const setNumber = (field, value) => set(field, value === "" ? "" : Number(value));
   const setArrivalDate = (field, value) => {
+    const month = field === "arrival_date_month" ? value : form.arrival_date_month;
+    const year = field === "arrival_date_year" ? value : form.arrival_date_year;
+
+    if (month && year !== "") {
+      setCalendarView({ year, month: MONTHS.indexOf(month) });
+    }
+
     setForm((current) => {
       const next = { ...current, [field]: value };
       const year = Number(next.arrival_date_year);
@@ -163,6 +248,37 @@ export default function PredictionForm({ onResult, onLoading }) {
     });
     setErrors([]);
   };
+  const navigateCalendar = (monthOffset) => {
+    setCalendarView((current) => {
+      const next = new Date(Date.UTC(current.year, current.month + monthOffset, 1));
+      const year = next.getUTCFullYear();
+      if (year < YEARS[0] || year > YEARS[YEARS.length - 1]) return current;
+      return { year, month: next.getUTCMonth() };
+    });
+  };
+  const selectCalendarDate = (year, month, day) => {
+    setForm((current) => ({
+      ...current,
+      arrival_date_year: year,
+      arrival_date_month: MONTHS[month],
+      arrival_date_day_of_month: day,
+      arrival_date_week_number: getISOWeekNumber(year, month, day),
+    }));
+    setCalendarView({ year, month });
+    setErrors([]);
+  };
+
+  const selectedDate =
+    form.arrival_date_year !== "" &&
+    MONTHS.indexOf(form.arrival_date_month) !== -1 &&
+    form.arrival_date_day_of_month !== "" &&
+    form.arrival_date_week_number !== ""
+      ? {
+          year: form.arrival_date_year,
+          month: MONTHS.indexOf(form.arrival_date_month),
+          day: form.arrival_date_day_of_month,
+        }
+      : null;
 
   const missingFields = (fields) => fields.filter((field) => form[field] === "");
 
@@ -222,25 +338,18 @@ export default function PredictionForm({ onResult, onLoading }) {
                 />
               </div>
               <div className="form-group">
+                <label className="form-label">Year</label>
+                <select className="form-input" value={form.arrival_date_year} onChange={(e) => setArrivalDate("arrival_date_year", e.target.value === "" ? "" : Number(e.target.value))}>
+                  <option value="" disabled>{SELECT_PLACEHOLDER.year}</option>
+                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Arrival Month</label>
                 <select className="form-input" value={form.arrival_date_month} onChange={(e) => setArrivalDate("arrival_date_month", e.target.value)}>
                   <option value="" disabled>{SELECT_PLACEHOLDER.month}</option>
                   {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Year</label>
-                <select className="form-input" value={form.arrival_date_year} onChange={(e) => setArrivalDate("arrival_date_year", e.target.value === "" ? "" : Number(e.target.value))}>
-                  <option value="" disabled>{SELECT_PLACEHOLDER.year}</option>
-                  {[2024,2025,2026,2027,2028].map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Week Number (1–53)</label>
-                <input type="number" className="form-input" min={1} max={53}
-                  value={form.arrival_date_week_number}
-                  placeholder="Calculated from arrival date"
-                  readOnly />
               </div>
               <div className="form-group">
                 <label className="form-label">Day of Month (1–31)</label>
@@ -249,7 +358,22 @@ export default function PredictionForm({ onResult, onLoading }) {
                   placeholder="Enter day of month"
                   onChange={(e) => setArrivalDate("arrival_date_day_of_month", e.target.value === "" ? "" : Number(e.target.value))} />
               </div>
+              <div className="form-group">
+                <label className="form-label">Week Number (1–53)</label>
+                <input type="number" className="form-input" min={1} max={53}
+                  value={form.arrival_date_week_number}
+                  placeholder="Calculated from arrival date"
+                  readOnly />
+              </div>
             </div>
+            <ArrivalCalendar
+              year={calendarView.year}
+              month={calendarView.month}
+              selectedDate={selectedDate}
+              today={today}
+              onNavigate={navigateCalendar}
+              onSelect={selectCalendarDate}
+            />
           </div>
         );
       case 1:

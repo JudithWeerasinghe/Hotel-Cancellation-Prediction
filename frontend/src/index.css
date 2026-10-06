@@ -495,6 +495,89 @@ input[type='range']::-webkit-slider-thumb:hover { transform: scale(1.2); }
 .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
 .span-2 { grid-column: span 2; }
 
+/* Arrival date calendar */
+.arrival-calendar {
+  margin-top: 24px;
+  padding: 18px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.calendar-title {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+.calendar-nav {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.calendar-nav:hover:not(:disabled) {
+  color: var(--accent-gold);
+  border-color: var(--border-active);
+}
+.calendar-nav:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.calendar-weekdays {
+  margin-bottom: 6px;
+}
+.calendar-weekdays span {
+  padding: 5px 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+.calendar-empty,
+.calendar-day {
+  min-height: 38px;
+}
+.calendar-day {
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  transition: all var(--transition);
+}
+.calendar-day:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.06);
+  border-color: var(--border);
+}
+.calendar-day.today {
+  border-color: var(--border-active);
+}
+.calendar-day.selected,
+.calendar-day.selected:hover {
+  color: #0a0f1e;
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  font-weight: 700;
+}
+
 /* ─── Multi-step Form ────────────────────────────────────── */
 .step-progress {
   display: flex;
