@@ -121,14 +121,14 @@ export default function History() {
             {/* Hotel filter */}
             <select className="filter-input" value={filter.hotel}
               onChange={(e) => { setFilter((f) => ({ ...f, hotel: e.target.value })); setPage(1); }}>
-              <option value="">All Hotels</option>
+              <option value="" disabled>Select hotel</option>
               <option>Resort Hotel</option>
               <option>City Hotel</option>
             </select>
             {/* Risk filter */}
             <select className="filter-input" value={filter.risk}
               onChange={(e) => { setFilter((f) => ({ ...f, risk: e.target.value })); setPage(1); }}>
-              <option value="">All Risk Levels</option>
+              <option value="" disabled>Select risk level</option>
               <option>High</option>
               <option>Low</option>
             </select>

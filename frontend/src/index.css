@@ -382,6 +382,7 @@ select.form-input option { background: var(--bg-card); }
   transition: all var(--transition);
 }
 .stepper-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.stepper-btn:disabled { cursor: not-allowed; opacity: 0.45; }
 .stepper-value {
   flex: 1;
   text-align: center;
@@ -443,6 +444,7 @@ select.form-input option { background: var(--bg-card); }
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.03);
   color: var(--text-secondary);
+  font-family: inherit;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;

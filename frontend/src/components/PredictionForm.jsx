@@ -16,9 +16,23 @@ const CUSTOMERS = ["Transient","Transient-Party","Contract","Group"];
 function Stepper({ value, onChange, min = 0, max = 99 }) {
   return (
     <div className="stepper">
-      <button className="stepper-btn" onClick={() => onChange(Math.max(min, value - 1))}>−</button>
-      <span className="stepper-value">{value}</span>
-      <button className="stepper-btn" onClick={() => onChange(Math.min(max, value + 1))}>+</button>
+      <button
+        type="button"
+        className="stepper-btn"
+        disabled={value !== "" && value <= min}
+        onClick={() => onChange(value === "" ? min : Math.max(min, value - 1))}
+      >
+        −
+      </button>
+      <span className="stepper-value">{value === "" ? "—" : value}</span>
+      <button
+        type="button"
+        className="stepper-btn"
+        disabled={value !== "" && value >= max}
+        onClick={() => onChange(Math.min(max, value === "" ? Math.max(min, 1) : value + 1))}
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -27,26 +41,15 @@ function OptionCards({ options, value, onChange }) {
   return (
     <div className="option-cards">
       {options.map((opt) => (
-        <div
+        <button
+          type="button"
           key={opt}
           className={`option-card ${value === opt ? "selected" : ""}`}
           onClick={() => onChange(opt)}
         >
           {opt}
-        </div>
+        </button>
       ))}
-    </div>
-  );
-}
-
-function Toggle({ value, onChange, labelOn = "Yes", labelOff = "No" }) {
-  return (
-    <div className="toggle-wrap">
-      <label className="toggle">
-        <input type="checkbox" checked={value === 1} onChange={(e) => onChange(e.target.checked ? 1 : 0)} />
-        <span className="toggle-track" />
-      </label>
-      <span className="toggle-label">{value === 1 ? labelOn : labelOff}</span>
     </div>
   );
 }
@@ -61,58 +64,103 @@ const STEPS = [
   { label: "Pricing & Extras", desc: "Rate, parking and special requests" },
 ];
 
-const DEFAULT_FORM = {
-  hotel: "Resort Hotel",
-  arrival_date_year: 2025,
-  arrival_date_month: "July",
-  arrival_date_week_number: 28,
-  arrival_date_day_of_month: 1,
-  stays_in_weekend_nights: 2,
-  stays_in_week_nights: 3,
-  lead_time: 90,
-  adults: 2,
-  children: 0,
-  babies: 0,
-  meal: "BB",
-  reserved_room_type: "A",
-  assigned_room_type: "A",
-  market_segment: "Online TA",
-  distribution_channel: "TA/TO",
-  deposit_type: "No Deposit",
-  customer_type: "Transient",
-  is_repeated_guest: 0,
-  previous_cancellations: 0,
-  previous_bookings_not_canceled: 0,
-  booking_changes: 0,
-  country_encoded: 63,
-  days_in_waiting_list: 0,
-  adr: 125.0,
-  required_car_parking_spaces: 0,
-  total_of_special_requests: 0,
+const FIELD_LABELS = {
+  hotel: "Hotel Type",
+  arrival_date_month: "Arrival Month",
+  arrival_date_year: "Year",
+  arrival_date_week_number: "Week Number",
+  arrival_date_day_of_month: "Day of Month",
+  stays_in_weekend_nights: "Weekend Nights",
+  stays_in_week_nights: "Week Nights",
+  lead_time: "Lead Time",
+  adults: "Adults",
+  children: "Children",
+  babies: "Babies",
+  meal: "Meal Plan",
+  reserved_room_type: "Reserved Room Type",
+  assigned_room_type: "Assigned Room Type",
+  market_segment: "Market Segment",
+  distribution_channel: "Distribution Channel",
+  deposit_type: "Deposit Type",
+  customer_type: "Customer Type",
+  is_repeated_guest: "Repeated Guest",
+  previous_cancellations: "Previous Cancellations",
+  previous_bookings_not_canceled: "Previous Not Cancelled",
+  booking_changes: "Booking Changes",
+  adr: "Average Daily Rate",
+  country_encoded: "Country (Encoded)",
+  days_in_waiting_list: "Days in Waiting List",
+  required_car_parking_spaces: "Car Parking Spaces",
+  total_of_special_requests: "Special Requests",
+};
+
+const STEP_FIELDS = [
+  ["hotel", "arrival_date_month", "arrival_date_year", "arrival_date_week_number", "arrival_date_day_of_month"],
+  ["stays_in_weekend_nights", "stays_in_week_nights", "lead_time"],
+  ["adults", "children", "babies"],
+  ["meal", "reserved_room_type", "assigned_room_type"],
+  ["market_segment", "distribution_channel", "deposit_type", "customer_type"],
+  ["is_repeated_guest", "previous_cancellations", "previous_bookings_not_canceled", "booking_changes"],
+  ["adr", "country_encoded", "days_in_waiting_list", "required_car_parking_spaces", "total_of_special_requests"],
+];
+
+const EMPTY_FORM = Object.fromEntries(
+  Object.keys(FIELD_LABELS).map((field) => [field, ""])
+);
+
+const SELECT_PLACEHOLDER = {
+  month: "Select month",
+  year: "Select year",
+  room: "Select room type",
+  segment: "Select market segment",
+  channel: "Select distribution channel",
 };
 
 export default function PredictionForm({ onResult, onLoading }) {
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState(DEFAULT_FORM);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const set = (field, val) => setForm((f) => ({ ...f, [field]: val }));
+  const set = (field, val) => {
+    setForm((f) => ({ ...f, [field]: val }));
+    setErrors([]);
+  };
+  const setNumber = (field, value) => set(field, value === "" ? "" : Number(value));
+
+  const missingFields = (fields) => fields.filter((field) => form[field] === "");
+
+  const handleNext = () => {
+    const missing = missingFields(STEP_FIELDS[step]);
+    if (missing.length > 0) {
+      setErrors([`Please complete: ${missing.map((field) => FIELD_LABELS[field]).join(", ")}.`]);
+      return;
+    }
+    setErrors([]);
+    setStep((current) => current + 1);
+  };
 
   const handleSubmit = async () => {
+    const firstIncompleteStep = STEP_FIELDS.findIndex((fields) => missingFields(fields).length > 0);
+    if (firstIncompleteStep !== -1) {
+      const missing = missingFields(STEP_FIELDS[firstIncompleteStep]);
+      setStep(firstIncompleteStep);
+      setErrors([`Please complete: ${missing.map((field) => FIELD_LABELS[field]).join(", ")}.`]);
+      return;
+    }
+
     setSubmitting(true);
     onLoading(true);
     setErrors([]);
     try {
-      const data = { ...form, children: parseFloat(form.children) };
-      const result = await predictCancellation(data);
+      const result = await predictCancellation(form);
       if (!result.success) {
         setErrors(result.errors);
         onResult(null);
       } else {
         onResult(result);
       }
-    } catch (e) {
+    } catch {
       setErrors(["Cannot reach the server. Make sure the backend is running on port 8000."]);
       onResult(null);
     } finally {
@@ -140,26 +188,30 @@ export default function PredictionForm({ onResult, onLoading }) {
               <div className="form-group">
                 <label className="form-label">Arrival Month</label>
                 <select className="form-input" value={form.arrival_date_month} onChange={(e) => set("arrival_date_month", e.target.value)}>
-                  {MONTHS.map((m) => <option key={m}>{m}</option>)}
+                  <option value="" disabled>{SELECT_PLACEHOLDER.month}</option>
+                  {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Year</label>
-                <select className="form-input" value={form.arrival_date_year} onChange={(e) => set("arrival_date_year", +e.target.value)}>
-                  {[2024,2025,2026,2027,2028].map((y) => <option key={y}>{y}</option>)}
+                <select className="form-input" value={form.arrival_date_year} onChange={(e) => setNumber("arrival_date_year", e.target.value)}>
+                  <option value="" disabled>{SELECT_PLACEHOLDER.year}</option>
+                  {[2024,2025,2026,2027,2028].map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Week Number (1–53)</label>
                 <input type="number" className="form-input" min={1} max={53}
                   value={form.arrival_date_week_number}
-                  onChange={(e) => set("arrival_date_week_number", +e.target.value)} />
+                  placeholder="Enter week number"
+                  onChange={(e) => setNumber("arrival_date_week_number", e.target.value)} />
               </div>
               <div className="form-group">
                 <label className="form-label">Day of Month (1–31)</label>
                 <input type="number" className="form-input" min={1} max={31}
                   value={form.arrival_date_day_of_month}
-                  onChange={(e) => set("arrival_date_day_of_month", +e.target.value)} />
+                  placeholder="Enter day of month"
+                  onChange={(e) => setNumber("arrival_date_day_of_month", e.target.value)} />
               </div>
             </div>
           </div>
@@ -182,9 +234,9 @@ export default function PredictionForm({ onResult, onLoading }) {
                 <label className="form-label">Lead Time (days before arrival): {form.lead_time}</label>
                 <div className="slider-wrap">
                   <div className="slider-row">
-                    <input type="range" min={0} max={500} value={form.lead_time}
-                      onChange={(e) => set("lead_time", +e.target.value)} />
-                    <span className="slider-val">{form.lead_time}d</span>
+                    <input type="number" className="form-input" min={0} max={500}
+                      value={form.lead_time} placeholder="Enter lead time"
+                      onChange={(e) => setNumber("lead_time", e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -212,7 +264,7 @@ export default function PredictionForm({ onResult, onLoading }) {
             </div>
             <div style={{ marginTop: 20, padding: 16, background: "rgba(59,130,246,0.06)", borderRadius: "var(--radius-md)", border: "1px solid rgba(59,130,246,0.15)" }}>
               <span style={{ fontSize: 13, color: "var(--accent-blue)" }}>
-                👥 Total guests: <strong>{form.adults + form.children + form.babies}</strong>
+                👥 Total guests: <strong>{Number(form.adults || 0) + Number(form.children || 0) + Number(form.babies || 0)}</strong>
                 &nbsp;·&nbsp;{(form.children > 0 || form.babies > 0) ? "Family booking" : "Adult-only booking"}
               </span>
             </div>
@@ -234,13 +286,15 @@ export default function PredictionForm({ onResult, onLoading }) {
               <div className="form-group">
                 <label className="form-label">Reserved Room Type</label>
                 <select className="form-input" value={form.reserved_room_type} onChange={(e) => set("reserved_room_type", e.target.value)}>
-                  {ROOM_TYPES.map((r) => <option key={r}>{r}</option>)}
+                  <option value="" disabled>{SELECT_PLACEHOLDER.room}</option>
+                  {ROOM_TYPES.map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Assigned Room Type</label>
                 <select className="form-input" value={form.assigned_room_type} onChange={(e) => set("assigned_room_type", e.target.value)}>
-                  {ROOM_TYPES.map((r) => <option key={r}>{r}</option>)}
+                  <option value="" disabled>{SELECT_PLACEHOLDER.room}</option>
+                  {ROOM_TYPES.map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>
@@ -255,13 +309,15 @@ export default function PredictionForm({ onResult, onLoading }) {
               <div className="form-group">
                 <label className="form-label">Market Segment</label>
                 <select className="form-input" value={form.market_segment} onChange={(e) => set("market_segment", e.target.value)}>
-                  {SEGMENTS.map((s) => <option key={s}>{s}</option>)}
+                  <option value="" disabled>{SELECT_PLACEHOLDER.segment}</option>
+                  {SEGMENTS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Distribution Channel</label>
                 <select className="form-input" value={form.distribution_channel} onChange={(e) => set("distribution_channel", e.target.value)}>
-                  {CHANNELS.map((c) => <option key={c}>{c}</option>)}
+                  <option value="" disabled>{SELECT_PLACEHOLDER.channel}</option>
+                  {CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="form-group span-2">
@@ -283,7 +339,11 @@ export default function PredictionForm({ onResult, onLoading }) {
             <div className="form-grid">
               <div className="form-group span-2">
                 <label className="form-label">Repeated Guest</label>
-                <Toggle value={form.is_repeated_guest} onChange={(v) => set("is_repeated_guest", v)} labelOn="Yes – Returning Guest" labelOff="No – New Guest" />
+                <OptionCards
+                  options={["Yes – Returning Guest", "No – New Guest"]}
+                  value={form.is_repeated_guest === "" ? "" : form.is_repeated_guest ? "Yes – Returning Guest" : "No – New Guest"}
+                  onChange={(value) => set("is_repeated_guest", value === "Yes – Returning Guest" ? 1 : 0)}
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Previous Cancellations</label>
@@ -307,24 +367,24 @@ export default function PredictionForm({ onResult, onLoading }) {
             <div className="step-desc">{STEPS[6].desc}</div>
             <div className="form-grid">
               <div className="form-group span-2">
-                <label className="form-label">Average Daily Rate (€): {form.adr.toFixed(0)}</label>
-                <div className="slider-row">
-                  <input type="range" min={0} max={5000} step={5} value={form.adr}
-                    onChange={(e) => set("adr", +e.target.value)} />
-                  <span className="slider-val">€{form.adr}</span>
-                </div>
+                <label className="form-label">Average Daily Rate (€)</label>
+                <input type="number" className="form-input" min={0} max={5000} step={0.01}
+                  value={form.adr} placeholder="Enter average daily rate"
+                  onChange={(e) => setNumber("adr", e.target.value)} />
               </div>
               <div className="form-group">
                 <label className="form-label">Country (Encoded)</label>
                 <input type="number" className="form-input" min={0} max={177}
                   value={form.country_encoded}
-                  onChange={(e) => set("country_encoded", +e.target.value)} />
+                  placeholder="Enter country code"
+                  onChange={(e) => setNumber("country_encoded", e.target.value)} />
               </div>
               <div className="form-group">
                 <label className="form-label">Days in Waiting List</label>
                 <input type="number" className="form-input" min={0}
                   value={form.days_in_waiting_list}
-                  onChange={(e) => set("days_in_waiting_list", +e.target.value)} />
+                  placeholder="Enter number of days"
+                  onChange={(e) => setNumber("days_in_waiting_list", e.target.value)} />
               </div>
               <div className="form-group">
                 <label className="form-label">Car Parking Spaces</label>
@@ -380,7 +440,7 @@ export default function PredictionForm({ onResult, onLoading }) {
         </span>
 
         {step < STEPS.length - 1 ? (
-          <button className="btn btn-primary" onClick={() => setStep((s) => s + 1)}>
+          <button className="btn btn-primary" onClick={handleNext}>
             Next <ChevronRight size={16} />
           </button>
         ) : (
