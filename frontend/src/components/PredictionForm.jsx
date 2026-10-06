@@ -177,9 +177,29 @@ const STEP_FIELDS = [
   ["adr", "country_encoded", "days_in_waiting_list", "required_car_parking_spaces", "total_of_special_requests"],
 ];
 
-const EMPTY_FORM = Object.fromEntries(
-  Object.keys(FIELD_LABELS).map((field) => [field, ""])
-);
+const ZERO_DEFAULT_FIELDS = [
+  "stays_in_weekend_nights",
+  "stays_in_week_nights",
+  "adults",
+  "children",
+  "babies",
+  "previous_cancellations",
+  "previous_bookings_not_canceled",
+  "booking_changes",
+  "required_car_parking_spaces",
+  "total_of_special_requests",
+];
+
+const DEFAULT_FORM = {
+  ...Object.fromEntries(
+    Object.keys(FIELD_LABELS).map((field) => [
+      field,
+      ZERO_DEFAULT_FIELDS.includes(field) ? 0 : "",
+    ])
+  ),
+  hotel: "Resort Hotel",
+  is_repeated_guest: 1,
+};
 
 function getISOWeekNumber(year, monthIndex, day) {
   const date = new Date(Date.UTC(year, monthIndex, day));
@@ -205,13 +225,15 @@ const SELECT_PLACEHOLDER = {
   channel: "Select distribution channel",
 };
 
-export default function PredictionForm({ onResult, onLoading }) {
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState(EMPTY_FORM);
+export default function PredictionForm({ onResult, initialForm, initialStep = 0 }) {
+  const [step, setStep] = useState(initialStep);
+  const [form, setForm] = useState(() => initialForm ?? DEFAULT_FORM);
   const [today] = useState(() => new Date());
   const [calendarView, setCalendarView] = useState({
-    year: Math.min(Math.max(today.getFullYear(), YEARS[0]), YEARS[YEARS.length - 1]),
-    month: today.getMonth(),
+    year: initialForm?.arrival_date_year || Math.min(Math.max(today.getFullYear(), YEARS[0]), YEARS[YEARS.length - 1]),
+    month: initialForm?.arrival_date_month
+      ? MONTHS.indexOf(initialForm.arrival_date_month)
+      : today.getMonth(),
   });
   const [errors, setErrors] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -302,7 +324,6 @@ export default function PredictionForm({ onResult, onLoading }) {
     }
 
     setSubmitting(true);
-    onLoading(true);
     setErrors([]);
     try {
       const result = await predictCancellation(form);
@@ -310,14 +331,13 @@ export default function PredictionForm({ onResult, onLoading }) {
         setErrors(result.errors);
         onResult(null);
       } else {
-        onResult(result);
+        onResult(result, form, step);
       }
     } catch {
       setErrors(["Cannot reach the server. Make sure the backend is running on port 8000."]);
       onResult(null);
     } finally {
       setSubmitting(false);
-      onLoading(false);
     }
   };
 
@@ -411,7 +431,7 @@ export default function PredictionForm({ onResult, onLoading }) {
             <div className="form-grid form-grid-3">
               <div className="form-group">
                 <label className="form-label">Adults</label>
-                <Stepper value={form.adults} onChange={(v) => set("adults", v)} min={1} max={10} />
+                <Stepper value={form.adults} onChange={(v) => set("adults", v)} max={10} />
               </div>
               <div className="form-group">
                 <label className="form-label">Children</label>
@@ -563,7 +583,7 @@ export default function PredictionForm({ onResult, onLoading }) {
   };
 
   return (
-    <div className="card" style={{ padding: 32 }}>
+    <div className="card prediction-form-card" style={{ padding: 40 }}>
       {/* Step Progress */}
       <div className="step-progress">
         {STEPS.map((s, i) => (

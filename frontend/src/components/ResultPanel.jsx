@@ -16,15 +16,17 @@ export default function ResultPanel({ result, loading }) {
 
   if (!result) {
     return (
-      <div className="result-panel">
+      <div className="result-panel result-panel-empty">
         <div className="result-empty">
           <div className="result-empty-icon">
-            <Activity size={32} />
+            <Activity size={20} />
           </div>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-secondary)" }}>
-            Awaiting Prediction
-          </h3>
-          <p>Fill in the booking form and submit to see the AI prediction result here.</p>
+          <div>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-secondary)" }}>
+              Prediction results will appear here
+            </h3>
+            <p>Complete the form and submit to see the cancellation risk.</p>
+          </div>
         </div>
       </div>
     );
