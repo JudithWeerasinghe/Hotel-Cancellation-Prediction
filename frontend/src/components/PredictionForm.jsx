@@ -108,6 +108,22 @@ const EMPTY_FORM = Object.fromEntries(
   Object.keys(FIELD_LABELS).map((field) => [field, ""])
 );
 
+function getISOWeekNumber(year, monthIndex, day) {
+  const date = new Date(Date.UTC(year, monthIndex, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== monthIndex ||
+    date.getUTCDate() !== day
+  ) {
+    return "";
+  }
+
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+}
+
 const SELECT_PLACEHOLDER = {
   month: "Select month",
   year: "Select year",
@@ -127,6 +143,26 @@ export default function PredictionForm({ onResult, onLoading }) {
     setErrors([]);
   };
   const setNumber = (field, value) => set(field, value === "" ? "" : Number(value));
+  const setArrivalDate = (field, value) => {
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      const year = Number(next.arrival_date_year);
+      const monthIndex = MONTHS.indexOf(next.arrival_date_month);
+      const day = Number(next.arrival_date_day_of_month);
+
+      next.arrival_date_week_number =
+        next.arrival_date_year !== "" &&
+        monthIndex !== -1 &&
+        next.arrival_date_day_of_month !== "" &&
+        Number.isInteger(year) &&
+        Number.isInteger(day)
+          ? getISOWeekNumber(year, monthIndex, day)
+          : "";
+
+      return next;
+    });
+    setErrors([]);
+  };
 
   const missingFields = (fields) => fields.filter((field) => form[field] === "");
 
@@ -187,14 +223,14 @@ export default function PredictionForm({ onResult, onLoading }) {
               </div>
               <div className="form-group">
                 <label className="form-label">Arrival Month</label>
-                <select className="form-input" value={form.arrival_date_month} onChange={(e) => set("arrival_date_month", e.target.value)}>
+                <select className="form-input" value={form.arrival_date_month} onChange={(e) => setArrivalDate("arrival_date_month", e.target.value)}>
                   <option value="" disabled>{SELECT_PLACEHOLDER.month}</option>
                   {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Year</label>
-                <select className="form-input" value={form.arrival_date_year} onChange={(e) => setNumber("arrival_date_year", e.target.value)}>
+                <select className="form-input" value={form.arrival_date_year} onChange={(e) => setArrivalDate("arrival_date_year", e.target.value === "" ? "" : Number(e.target.value))}>
                   <option value="" disabled>{SELECT_PLACEHOLDER.year}</option>
                   {[2024,2025,2026,2027,2028].map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
@@ -203,15 +239,15 @@ export default function PredictionForm({ onResult, onLoading }) {
                 <label className="form-label">Week Number (1–53)</label>
                 <input type="number" className="form-input" min={1} max={53}
                   value={form.arrival_date_week_number}
-                  placeholder="Enter week number"
-                  onChange={(e) => setNumber("arrival_date_week_number", e.target.value)} />
+                  placeholder="Calculated from arrival date"
+                  readOnly />
               </div>
               <div className="form-group">
                 <label className="form-label">Day of Month (1–31)</label>
                 <input type="number" className="form-input" min={1} max={31}
                   value={form.arrival_date_day_of_month}
                   placeholder="Enter day of month"
-                  onChange={(e) => setNumber("arrival_date_day_of_month", e.target.value)} />
+                  onChange={(e) => setArrivalDate("arrival_date_day_of_month", e.target.value === "" ? "" : Number(e.target.value))} />
               </div>
             </div>
           </div>
