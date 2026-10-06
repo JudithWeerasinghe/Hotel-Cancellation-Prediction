@@ -1,21 +1,13 @@
-import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import PredictionForm from "../components/PredictionForm";
-import ResultPanel from "../components/ResultPanel";
-import Toast from "../components/Toast";
 
 export default function Predict() {
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const handleResult = (res) => {
-    setResult(res);
+  const handleResult = (res, form, step) => {
     if (res?.success) {
-      setToast({ message: "Prediction complete!", type: "success" });
-      // scroll to result on mobile
-      setTimeout(() => {
-        document.getElementById("result-panel")?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      navigate("/prediction-result", { state: { result: res, form, step } });
     }
   };
 
@@ -31,22 +23,12 @@ export default function Predict() {
         <p>Fill in all booking details across 7 steps to get an instant AI cancellation prediction.</p>
       </div>
 
-      <div className="predict-layout">
-        <PredictionForm onResult={handleResult} onLoading={setLoading} />
-        <div id="result-panel">
-          <ResultPanel result={result} loading={loading} />
-        </div>
-      </div>
-
-      {/* Toast container */}
-      <div className="toast-container">
-        {toast && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        )}
+      <div className="predict-layout predict-layout-form-only">
+        <PredictionForm
+          onResult={handleResult}
+          initialForm={location.state?.initialForm}
+          initialStep={location.state?.initialStep}
+        />
       </div>
     </div>
   );
